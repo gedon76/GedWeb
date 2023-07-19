@@ -1,4 +1,4 @@
 # GedWeb
-I made this browser in a day just for fun lol
+Alpha version of my browser
 
-Also this repository was created from this browser
+eeeeee
