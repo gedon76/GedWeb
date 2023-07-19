@@ -8,13 +8,14 @@ from PyQt5.QtNetwork import QNetworkProxy
 from PyQt5.QtWebEngineCore import *
 import subprocess
 
-
-homepage = os.path.dirname(os.path.realpath(__file__)).replace("\\", "/") + "/mainpage/index.html"
+startpage = "https://www.duckduckgo.com/"
+directory = os.path.dirname(os.path.realpath(__file__)).replace("\\", "/")
+homepage = "file://" + os.path.dirname(os.path.realpath(__file__)).replace("\\", "/") + "/pages/mainpage/index.html"
+aboutpage = "file://" + os.path.dirname(os.path.realpath(__file__)).replace("\\", "/") + "/pages/about/index.html"
 
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
-        print(os.path.join(os.path.dirname(os.path.realpath(__file__)), "homepage\index.html"))
 
         # Create the QTabWidget and add it to the central widget area
         self.tabs = QTabWidget()
@@ -30,23 +31,22 @@ class MainWindow(QMainWindow):
         self.resize(size)
 
         # Create a new tab for the default homepage
-        self.add_tab(homepage)
-
+        self.add_tab(startpage)
         self.navtb = QToolBar()
         self.addToolBar(self.navtb)
 
         self.tabs.setTabsClosable(True)
         self.tabs.tabCloseRequested.connect(self.close_tab)
 
-        back_btn = QAction('↶', self)
+        back_btn = QAction('🡄', self)
         back_btn.triggered.connect(self.current_browser().back)
         self.navtb.addAction(back_btn)
 
-        forward_btn = QAction('↷', self)
+        forward_btn = QAction('🡆', self)
         forward_btn.triggered.connect(self.current_browser().forward)
         self.navtb.addAction(forward_btn)
 
-        reload_btn = QAction('↻', self)
+        reload_btn = QAction('🔁', self)
         reload_btn.triggered.connect(self.current_browser().reload)
         self.navtb.addAction(reload_btn)
 
@@ -59,16 +59,22 @@ class MainWindow(QMainWindow):
         self.navtb.addWidget(self.urlbar)
         daurlbar = self.urlbar
 
-        history_btn = QAction('History', self)
-        history_btn.triggered.connect(self.show_history_menu)
-        self.navtb.addAction(history_btn)
+        downloads_btn = QAction('⬇', self)
+        downloads_btn.triggered.connect(self.show_downloads)
+        self.navtb.addAction(downloads_btn)
+
+        other_btn = QAction('☰', self)
+        other_btn.triggered.connect(self.show_other_menu)
+        self.navtb.addAction(other_btn)
 
         addtab_btn = QToolButton()
-        addtab_btn.setText('+')
+        addtab_btn.setText('ᐩ')
         addtab_btn.clicked.connect(lambda: self.add_tab(homepage))
         self.tabs.setCornerWidget(addtab_btn, Qt.TopRightCorner)
 
         self.history_menu = QMenu(self)
+        self.other_menu = QMenu(self)
+        self.downloads_menu = QMenu(self)
 
         self.show()
 
@@ -77,10 +83,11 @@ class MainWindow(QMainWindow):
         self.current_browser().loadFinished.connect(self.update_urlbar)
 
     def add_tab(self, url):
-    # Create a new QWebEngineView and add it as a tab
+        # Create a new QWebEngineView and add it as a tab
         browser = QWebEngineView()
 
-        # Create an instance of GedWebUrlRequestInterceptor and add it to the page object
+        # Connect the downloadRequested signal to the handle_download method
+        browser.page().profile().downloadRequested.connect(self.handle_download)
 
         browser.setUrl(QUrl(url))
         browser.setWindowTitle(browser.page().title())
@@ -103,8 +110,7 @@ class MainWindow(QMainWindow):
         # Close the tab at the given index
         widget = self.tabs.widget(index)
         if widget is not None:
-            widget.deleteLater()
-        self.tabs.removeTab(index)  
+            self.tabs.removeTab(index)  
         self.update_title()
 
     def update_tab_title(self, index, title):
@@ -129,7 +135,11 @@ class MainWindow(QMainWindow):
 
     def navigate_to_url(self):
         q = QUrl(self.urlbar.text())
-        if self.is_url_reachable(self.urlbar.text()):
+        if self.urlbar.text() == "gedweb://about":
+            q = QUrl(aboutpage)
+        elif self.urlbar.text() == "gedweb://home":
+            q = QUrl(homepage)
+        elif self.is_url_reachable(self.urlbar.text()):
             q = QUrl('http://' + self.urlbar.text())
         else:
             q = QUrl('http://duckduckgo.com/?q=% s' % self.urlbar.text().replace(' ', '+'))
@@ -165,25 +175,67 @@ class MainWindow(QMainWindow):
         pos = self.mapToGlobal(self.navtb.pos()) + QPoint(0, self.navtb.height()) + QPoint(self.navtb.width(), 0)
         self.history_menu.popup(pos)
 
+    def show_downloads(self):
+        print("Sorry! I'm too dumb to code that :P")
 
-app = QApplication(['', '--no-sandbox'])
-app.setStyle("Fusion")
-dark_palette = QPalette()
-dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
-dark_palette.setColor(QPalette.WindowText, Qt.white)
-dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
-dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
-dark_palette.setColor(QPalette.ToolTipText, Qt.white)
-dark_palette.setColor(QPalette.Text, Qt.white)
-dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
-dark_palette.setColor(QPalette.ButtonText, Qt.white)
-dark_palette.setColor(QPalette.BrightText, Qt.red)
-dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
-dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-dark_palette.setColor(QPalette.HighlightedText, Qt.black)
-app.setPalette(dark_palette)
-window = MainWindow()
-window.show()  # отображаем окно
-window.update_title()  # вызываем метод после отображения окна
-sys.exit(app.exec_())
+    # Функция-обработчик события для пункта загрузки
+    def handle_download(self, download):
+        # Получение имени файла загрузки
+        file_name = download.suggestedFileName()
+
+        # Получение папки загрузок
+        download_folder = QStandardPaths.writableLocation(QStandardPaths.DownloadLocation)
+
+        # Отображение диалогового окна сохранения файла
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        file_path, _ = QFileDialog.getSaveFileName(self, "Сохранить файл", 
+                                                download_folder + "/" + file_name,
+                                                "Все файлы (*)", options=options)
+
+        if file_path:
+            # Сохранение файла
+            download.setPath(file_path)
+            download.accept()
+
+
+    def show_other_menu(self):
+        self.other_menu.clear()
+        actionNT = QAction('New Tab (Home Page)', self)
+        actionNT.triggered.connect(lambda: self.add_tab(homepage))
+        self.other_menu.addAction(actionNT)
+        actionAB = QAction('About GedWeb', self)
+        actionAB.triggered.connect(lambda: self.add_tab(aboutpage))
+        self.other_menu.addAction(actionAB)
+        actionHT = QAction('History', self)
+        actionHT.triggered.connect(self.show_history_menu)
+        self.other_menu.addAction(actionHT)
+
+        pos = self.mapToGlobal(self.navtb.pos()) + QPoint(0, self.navtb.height()) + QPoint(self.navtb.width(), 0)
+        self.other_menu.popup(pos)
+
+
+
+if __name__ == "__main__":
+    app = QApplication(['GedWeb', '--no-sandbox'])
+    app.setStyle("Fusion")
+    dark_palette = QPalette()
+    dark_palette.setColor(QPalette.Window, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.WindowText, Qt.white)
+    dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
+    dark_palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ToolTipBase, Qt.white)
+    dark_palette.setColor(QPalette.ToolTipText, Qt.white)
+    dark_palette.setColor(QPalette.Text, Qt.white)
+    dark_palette.setColor(QPalette.Button, QColor(53, 53, 53))
+    dark_palette.setColor(QPalette.ButtonText, Qt.white)
+    dark_palette.setColor(QPalette.BrightText, Qt.red)
+    dark_palette.setColor(QPalette.Link, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+    dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+    app.setPalette(dark_palette)
+    app.setApplicationName("GedWeb")
+    window = MainWindow()
+    window.show()  # отображаем окно
+    window.update_title()  # вызываем метод после отображения окна
+    sys.exit(app.exec_())
